@@ -1,10 +1,19 @@
 export type Mode = 'landing' | 'student' | 'teacher' | 'kahoot' | 'vocab';
 export type Language = 'en' | 'ru' | 'uz';
 
+export interface Badge {
+  id: string;
+  icon: string;
+  name: string;
+  description: string;
+}
+
 export interface UserState {
   xp: number;
+  level: number;
   streak: number;
   completedModules: string[];
+  badges: string[];
 }
 
 export interface VocabItem {

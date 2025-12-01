@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { VOCAB_LIST, UI_TEXT, SOUNDS } from '../constants';
-import { RefreshCw, FlipHorizontal, ArrowLeft, Zap, BookOpen, Clock } from 'lucide-react';
+import { ArrowLeft, Zap, X, Heart, RotateCcw } from 'lucide-react';
 import { Language } from '../types';
 
 interface VocabBuilderProps {
@@ -9,162 +9,104 @@ interface VocabBuilderProps {
 }
 
 export const VocabBuilder: React.FC<VocabBuilderProps> = ({ onBack, lang }) => {
-  const [mode, setMode] = useState<'study' | 'drill'>('study');
-  const [flipped, setFlipped] = useState<{[key: string]: boolean}>({});
-  
-  // Drill State
-  const [drillIndex, setDrillIndex] = useState(0);
-  const [drillScore, setDrillScore] = useState(0);
-  const [drillOptions, setDrillOptions] = useState<string[]>([]);
-  const [showDrillResult, setShowDrillResult] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [swipedDir, setSwipedDir] = useState<'left' | 'right' | null>(null);
+  const [streak, setStreak] = useState(0);
 
   const t = (key: string) => UI_TEXT[key]?.[lang] || key;
+  const currentCard = VOCAB_LIST[currentIndex % VOCAB_LIST.length];
 
-  // Setup drill question
-  useEffect(() => {
-    if (mode === 'drill') {
-      const correct = VOCAB_LIST[drillIndex];
-      // Find a wrong option
-      let wrong = VOCAB_LIST[Math.floor(Math.random() * VOCAB_LIST.length)];
-      while (wrong.id === correct.id) {
-        wrong = VOCAB_LIST[Math.floor(Math.random() * VOCAB_LIST.length)];
-      }
-      
-      const opts = Math.random() > 0.5 
-        ? [correct.definition, wrong.definition] 
-        : [wrong.definition, correct.definition];
-      setDrillOptions(opts);
-      setShowDrillResult(false);
-    }
-  }, [drillIndex, mode]);
-
-  const handleDrillAnswer = (answer: string) => {
-    if (showDrillResult) return;
-    const correct = VOCAB_LIST[drillIndex].definition;
-    
-    if (answer === correct) {
-      new Audio(SOUNDS.CORRECT).play().catch(()=>{});
-      setDrillScore(s => s + 1);
+  const handleSwipe = (dir: 'left' | 'right') => {
+    setSwipedDir(dir);
+    if (dir === 'right') {
+        const audio = new Audio(SOUNDS.SUCCESS);
+        audio.volume = 0.3;
+        audio.play().catch(()=>{});
+        setStreak(s => s + 1);
     } else {
-      new Audio(SOUNDS.WRONG).play().catch(()=>{});
+        const audio = new Audio(SOUNDS.WRONG);
+        audio.volume = 0.3;
+        audio.play().catch(()=>{});
+        setStreak(0);
     }
-    setShowDrillResult(true);
 
     setTimeout(() => {
-      if (drillIndex < VOCAB_LIST.length - 1) {
-        setDrillIndex(i => i + 1);
-      } else {
-        // Loop back for endless drill or finish
-        setDrillIndex(0); 
-      }
-    }, 1000);
+        setSwipedDir(null);
+        setIsFlipped(false);
+        setCurrentIndex(prev => prev + 1);
+    }, 300);
   };
 
-  const playFlipSound = () => {
-    const audio = new Audio(SOUNDS.CLICK);
-    audio.volume = 0.3;
-    audio.play().catch(() => {});
-  }
-
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 transition-colors duration-300">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm">
-          <button onClick={onBack} className="flex items-center text-slate-600 dark:text-slate-300 font-bold hover:text-teal-600">
-            <ArrowLeft className="mr-2" /> {t('back')}
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(76,29,149,0.3),rgba(0,0,0,1))]"></div>
+      
+      {/* Header */}
+      <div className="absolute top-6 left-6 z-20">
+          <button onClick={onBack} className="p-3 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors">
+            <ArrowLeft size={24} />
           </button>
-          
-          <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
-            <button 
-              onClick={() => setMode('study')}
-              className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${mode === 'study' ? 'bg-white dark:bg-slate-600 text-teal-600 shadow-md' : 'text-slate-400'}`}
-            >
-              <BookOpen size={16} /> {t('study')}
-            </button>
-            <button 
-              onClick={() => setMode('drill')}
-              className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${mode === 'drill' ? 'bg-yellow-400 text-slate-900 shadow-md' : 'text-slate-400'}`}
-            >
-              <Zap size={16} /> {t('quiz')}
-            </button>
-          </div>
-        </div>
-
-        {mode === 'study' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {VOCAB_LIST.map(item => (
-              <div 
-                key={item.id} 
-                className="h-64 perspective-1000 group cursor-pointer"
-                onClick={() => {
-                  setFlipped(prev => ({...prev, [item.id]: !prev[item.id]}));
-                  playFlipSound();
-                }}
-              >
-                <div className={`relative w-full h-full transition-all duration-500 preserve-3d shadow-xl rounded-2xl ${flipped[item.id] ? 'rotate-y-180' : ''}`}>
-                  {/* Front */}
-                  <div className="absolute w-full h-full bg-white dark:bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center backface-hidden border-2 border-slate-100 dark:border-slate-700">
-                    <span className="absolute top-4 right-4 text-xs font-bold text-slate-400 uppercase">{item.partOfSpeech}</span>
-                    <h3 className="text-2xl font-black text-slate-800 dark:text-white text-center mb-1">{item.word}</h3>
-                    <p className="text-sm text-teal-600 dark:text-teal-400 font-medium">
-                      {lang === 'ru' ? item.translation.ru : lang === 'uz' ? item.translation.uz : ''}
-                    </p>
-                    <div className="absolute bottom-4 text-slate-300 text-xs font-bold uppercase tracking-widest flex items-center gap-1">
-                      <FlipHorizontal size={12} /> Flip
-                    </div>
-                  </div>
-
-                  {/* Back */}
-                  <div className="absolute w-full h-full bg-slate-800 text-white rounded-2xl p-6 flex flex-col items-center justify-center rotate-y-180 backface-hidden">
-                    <p className="font-bold text-lg text-center leading-tight mb-4 text-yellow-400">"{item.definition}"</p>
-                    <p className="text-xs text-slate-400 text-center italic">"{item.contextSentence}"</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="max-w-2xl mx-auto mt-10">
-             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700">
-                <div className="bg-slate-100 dark:bg-slate-900 p-4 flex justify-between items-center border-b dark:border-slate-700">
-                   <span className="font-bold text-slate-500 uppercase tracking-widest text-xs">Drill Mode</span>
-                   <div className="flex items-center gap-2 text-yellow-500 font-black">
-                      <Zap size={18} fill="currentColor" /> {drillScore}
-                   </div>
-                </div>
-                
-                <div className="p-12 text-center">
-                   <h2 className="text-5xl font-black text-slate-800 dark:text-white mb-12">
-                     {VOCAB_LIST[drillIndex].word}
-                   </h2>
-                   
-                   <div className="grid grid-cols-1 gap-4">
-                     {drillOptions.map((opt, i) => {
-                       const isCorrect = opt === VOCAB_LIST[drillIndex].definition;
-                       return (
-                         <button
-                           key={i}
-                           onClick={() => handleDrillAnswer(opt)}
-                           disabled={showDrillResult}
-                           className={`p-6 rounded-xl font-bold text-xl transition-all transform active:scale-95 ${
-                             showDrillResult
-                               ? isCorrect 
-                                 ? 'bg-green-500 text-white shadow-green-500/50'
-                                 : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
-                               : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 hover:shadow-lg border-2 border-indigo-100 dark:border-indigo-800'
-                           }`}
-                         >
-                           {opt}
-                         </button>
-                       )
-                     })}
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
       </div>
+
+      <div className="absolute top-6 right-6 z-20 flex flex-col items-end">
+          <div className="flex items-center gap-2 text-yellow-400 font-black text-2xl drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">
+             <Zap fill="currentColor" /> {streak}
+          </div>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Streak</p>
+      </div>
+
+      {/* Card Container */}
+      <div className="relative w-full max-w-sm aspect-[3/4] z-10 perspective-1000">
+         <div 
+           className={`w-full h-full relative transition-all duration-500 preserve-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''} ${swipedDir === 'left' ? '-translate-x-full rotate-[-20deg] opacity-0' : swipedDir === 'right' ? 'translate-x-full rotate-[20deg] opacity-0' : ''}`}
+           onClick={() => setIsFlipped(!isFlipped)}
+         >
+            {/* Front */}
+            <div className="absolute inset-0 bg-slate-900 rounded-[3rem] border-2 border-slate-700 p-8 flex flex-col items-center justify-center text-center backface-hidden shadow-2xl">
+                <span className="text-slate-500 font-bold uppercase tracking-[0.2em] mb-8">{currentCard.partOfSpeech}</span>
+                <h2 className="text-5xl font-black text-white mb-6 drop-shadow-md">{currentCard.word}</h2>
+                <div className="w-16 h-1 bg-gradient-to-r from-teal-400 to-purple-500 rounded-full mb-8"></div>
+                <p className="text-slate-400 font-medium">Tap to reveal meaning</p>
+            </div>
+
+            {/* Back */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 rounded-[3rem] p-8 flex flex-col items-center justify-center text-center backface-hidden rotate-y-180 shadow-2xl border-2 border-indigo-500/50">
+                <p className="text-3xl font-bold text-white mb-6 leading-tight">"{currentCard.definition}"</p>
+                <p className="text-indigo-200 italic mb-8">"{currentCard.contextSentence}"</p>
+                <p className="bg-black/30 px-4 py-2 rounded-lg text-sm text-white font-medium">
+                    {lang === 'ru' ? currentCard.translation.ru : lang === 'uz' ? currentCard.translation.uz : ''}
+                </p>
+            </div>
+         </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-8 mt-12 z-20">
+         <button 
+           onClick={() => handleSwipe('left')}
+           className="w-20 h-20 rounded-full bg-slate-900 border-2 border-red-500/50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white hover:scale-110 transition-all shadow-xl active:scale-95"
+         >
+            <X size={40} strokeWidth={3} />
+         </button>
+         
+         <button 
+           onClick={() => setIsFlipped(prev => !prev)}
+           className="w-14 h-14 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-all shadow-lg"
+         >
+            <RotateCcw size={24} />
+         </button>
+
+         <button 
+           onClick={() => handleSwipe('right')}
+           className="w-20 h-20 rounded-full bg-slate-900 border-2 border-green-500/50 text-green-500 flex items-center justify-center hover:bg-green-500 hover:text-white hover:scale-110 transition-all shadow-xl active:scale-95"
+         >
+            <Heart size={36} fill="currentColor" />
+         </button>
+      </div>
+
+      <p className="mt-8 text-slate-500 text-sm font-medium opacity-50">Swipe Left (Forgot) • Swipe Right (Got it)</p>
     </div>
   );
 };

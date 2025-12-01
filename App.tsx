@@ -4,26 +4,33 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { KahootMode } from './components/KahootMode';
 import { VocabBuilder } from './components/VocabBuilder';
 import { UserState, Mode, Language } from './types';
-import { Users, GraduationCap, Gamepad2, BookA, Zap, Sun, Moon, Globe } from 'lucide-react';
-import { UI_TEXT, SOUNDS } from './constants';
+import { Users, GraduationCap, Gamepad2, BookA, Zap, Globe, Trophy, Star, Crown } from 'lucide-react';
+import { UI_TEXT, SOUNDS, LEVELS, BADGES } from './constants';
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('landing');
-  const [darkMode, setDarkMode] = useState(false);
   const [lang, setLang] = useState<Language>('en');
   const [userState, setUserState] = useState<UserState>({
     xp: 0,
-    streak: 1,
-    completedModules: []
+    level: 0,
+    streak: 3,
+    completedModules: [],
+    badges: ['first_blood']
   });
+  const [showLevelUp, setShowLevelUp] = useState(false);
 
+  // Check for level up
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    const nextLevel = LEVELS.findIndex(l => l.xp > userState.xp);
+    const currentLevelIdx = nextLevel === -1 ? LEVELS.length - 1 : nextLevel - 1;
+    
+    if (currentLevelIdx > userState.level) {
+        setUserState(prev => ({...prev, level: currentLevelIdx}));
+        setShowLevelUp(true);
+        const audio = new Audio(SOUNDS.SUCCESS);
+        audio.play().catch(()=>{});
     }
-  }, [darkMode]);
+  }, [userState.xp]);
 
   const addXP = (amount: number) => {
     setUserState(prev => ({ ...prev, xp: prev.xp + amount }));
@@ -47,126 +54,204 @@ export default function App() {
     }
   };
 
+  const currentLevelData = LEVELS[userState.level];
+  const nextLevelData = LEVELS[userState.level + 1];
+  const progressPercent = nextLevelData 
+    ? ((userState.xp - currentLevelData.xp) / (nextLevelData.xp - currentLevelData.xp)) * 100 
+    : 100;
+
   if (mode !== 'landing') return (
-    <div className={darkMode ? 'dark' : ''}>
+    <div className="dark">
        {renderContent()}
     </div>
   );
 
   return (
-    <div className={`min-h-screen font-sans selection:bg-teal-500 selection:text-white transition-colors duration-300 ${darkMode ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className="min-h-screen font-sans selection:bg-teal-500 selection:text-white bg-black text-white dark">
       
-      {/* Top Bar */}
-      <div className="absolute top-0 w-full p-6 flex justify-between items-center z-50">
-         <div className="flex gap-4">
-             <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
-                {darkMode ? <Sun className="text-yellow-400" /> : <Moon className="text-slate-600" />}
-             </button>
+      {/* Level Up Modal */}
+      {showLevelUp && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fadeIn p-4">
+            <div className="bg-gradient-to-b from-slate-900 to-black p-8 rounded-[2rem] border-2 border-yellow-400/50 shadow-[0_0_50px_rgba(250,204,21,0.3)] text-center max-w-sm w-full relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
+                <Trophy className="w-24 h-24 text-yellow-400 mx-auto mb-6 animate-bounce" />
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2">Level Up!</h2>
+                <p className="text-slate-400 mb-6 font-bold">You are now:</p>
+                <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-500 mb-8">
+                    {LEVELS[userState.level].name}
+                </div>
+                <button 
+                    onClick={() => setShowLevelUp(false)}
+                    className="w-full py-4 bg-yellow-400 text-black font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-transform"
+                >
+                    Claim Rewards
+                </button>
+            </div>
+        </div>
+      )}
+
+      {/* Top Bar / Profile Header */}
+      <div className="bg-slate-900/50 backdrop-blur-xl border-b border-slate-800 p-4 sticky top-0 z-50">
+         <div className="max-w-7xl mx-auto flex items-center justify-between">
+            {/* User Profile */}
+            <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-purple-500 p-[2px]">
+                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-lg">😎</div>
+                </div>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className={`font-black uppercase text-sm ${currentLevelData.color}`}>{currentLevelData.name}</span>
+                        <span className="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-400">Lvl {userState.level + 1}</span>
+                    </div>
+                    {/* XP Bar */}
+                    <div className="w-32 h-2 bg-slate-800 rounded-full mt-1 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-teal-400 to-blue-500" style={{ width: `${progressPercent}%` }}></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Badges / Streak */}
+            <div className="flex gap-3">
+                <div className="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                    <Zap className="text-yellow-400 fill-yellow-400 w-4 h-4" />
+                    <span className="font-bold text-sm">{userState.streak}</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                    <Star className="text-purple-400 fill-purple-400 w-4 h-4" />
+                    <span className="font-bold text-sm">{userState.xp}</span>
+                </div>
+            </div>
+
+            {/* Lang Switcher */}
              <div className="relative group">
-                 <button className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center gap-1">
-                    <Globe className={darkMode ? "text-slate-300" : "text-slate-600"} />
-                    <span className="text-xs font-bold uppercase">{lang}</span>
+                 <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                    <Globe className="text-slate-400" />
                  </button>
-                 <div className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl overflow-hidden hidden group-hover:block min-w-[100px] border border-gray-100 dark:border-slate-700">
-                    <button onClick={() => setLang('en')} className="block w-full text-left px-4 py-2 hover:bg-teal-50 dark:hover:bg-slate-700 text-sm">English</button>
-                    <button onClick={() => setLang('ru')} className="block w-full text-left px-4 py-2 hover:bg-teal-50 dark:hover:bg-slate-700 text-sm">Русский</button>
-                    <button onClick={() => setLang('uz')} className="block w-full text-left px-4 py-2 hover:bg-teal-50 dark:hover:bg-slate-700 text-sm">O'zbek</button>
+                 <div className="absolute top-full right-0 mt-2 bg-slate-800 rounded-xl shadow-xl overflow-hidden hidden group-hover:block min-w-[100px] border border-slate-700">
+                    <button onClick={() => setLang('en')} className="block w-full text-left px-4 py-2 hover:bg-slate-700 text-sm">ENG</button>
+                    <button onClick={() => setLang('ru')} className="block w-full text-left px-4 py-2 hover:bg-slate-700 text-sm">RUS</button>
+                    <button onClick={() => setLang('uz')} className="block w-full text-left px-4 py-2 hover:bg-slate-700 text-sm">UZB</button>
                  </div>
              </div>
          </div>
       </div>
 
       {/* Hero Section */}
-      <div className="relative overflow-hidden pb-10">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1529156069898-49953e39b3ac?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover opacity-10 blur-sm dark:opacity-5"></div>
-        <div className="relative max-w-7xl mx-auto px-6 pt-32 text-center">
-          <div className="inline-block px-4 py-1 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-300 border border-teal-500/20 mb-6 backdrop-blur-sm animate-fadeIn font-bold tracking-widest uppercase text-xs">
-            Oxford Navigate B1+
+      <div className="relative overflow-hidden pb-10 pt-16">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/40 via-black to-black"></div>
+        <div className="relative max-w-7xl mx-auto px-6 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20 mb-6 backdrop-blur-sm animate-fadeIn font-bold tracking-widest uppercase text-[10px]">
+            <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span> Oxford Navigate B1+ Unit 1
           </div>
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-8 bg-clip-text text-transparent bg-gradient-to-r from-teal-500 via-blue-500 to-purple-600 animate-slideUp">
-            {t('unitTitle')}
+          <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-500 animate-slideUp">
+            TRENDS.
           </h1>
-          <p className="text-2xl text-slate-500 dark:text-slate-300 max-w-3xl mx-auto mb-16 leading-relaxed font-light">
-             Interactive CELTA-powered learning platform with gamified grammar, reading, and vocabulary modules.
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-12 font-medium">
+             Master Present Tenses & Friendship Vocab to level up your English stats.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-8 mb-20">
-             <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 backdrop-blur-md flex flex-col items-center min-w-[180px] shadow-xl transform hover:scale-105 transition-transform">
-               <Zap className="text-yellow-400 mb-2 fill-yellow-400" size={32} />
-               <span className="text-4xl font-black text-slate-800 dark:text-white">{userState.xp}</span>
-               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('xpEarned')}</span>
-             </div>
-             <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 backdrop-blur-md flex flex-col items-center min-w-[180px] shadow-xl transform hover:scale-105 transition-transform delay-75">
-               <div className="text-orange-500 mb-2 text-3xl">🔥</div>
-               <span className="text-4xl font-black text-slate-800 dark:text-white">{userState.streak}</span>
-               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('dayStreak')}</span>
-             </div>
+          {/* Badges Display */}
+          <div className="flex justify-center gap-4 mb-16 flex-wrap">
+             {BADGES.map(b => (
+                 <div key={b.id} className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-slate-900 border-2 ${userState.badges.includes(b.id) ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.2)] grayscale-0 opacity-100' : 'border-slate-800 grayscale opacity-30'} transition-all`} title={b.name}>
+                    {b.icon}
+                 </div>
+             ))}
           </div>
         </div>
       </div>
 
-      {/* Mode Selection */}
-      <div className="max-w-7xl mx-auto px-6 pb-20 -mt-10 relative z-10">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      {/* Mode Selection Grid */}
+      <div className="max-w-7xl mx-auto px-6 pb-20 -mt-8 relative z-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           
-          {/* Student Mode Card */}
+          {/* Story Mode */}
           <button 
             onClick={() => { setMode('student'); playClick(); }}
-            className="group relative bg-white dark:bg-slate-800 text-left p-10 rounded-[2.5rem] shadow-2xl hover:shadow-teal-500/30 transition-all hover:-translate-y-3 overflow-hidden border border-gray-100 dark:border-slate-700"
+            className="group relative h-80 bg-slate-900 rounded-[2.5rem] p-8 text-left border border-slate-800 hover:border-teal-500 transition-all hover:-translate-y-2 overflow-hidden flex flex-col justify-end"
           >
-            <div className="absolute -right-4 -top-4 w-32 h-32 bg-teal-50 dark:bg-teal-900/20 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative z-10">
-               <div className="w-16 h-16 bg-teal-100 dark:bg-teal-900/50 rounded-2xl flex items-center justify-center text-teal-600 dark:text-teal-400 mb-8 group-hover:rotate-12 transition-transform shadow-sm">
-                 <Users size={32} />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-10"></div>
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80')] bg-cover bg-center opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
+            
+            <div className="relative z-20">
+               <div className="flex justify-between items-end mb-2">
+                 <h3 className="text-3xl font-black text-white italic">{t('studentMode')}</h3>
+                 <Users className="text-teal-400 w-8 h-8 mb-1" />
                </div>
-               <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{t('studentMode')}</h3>
-               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Core lesson path. Interactive reading, discussion & grammar tasks.</p>
+               <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                   <div className="h-full w-1/3 bg-teal-400"></div>
+               </div>
+               <p className="text-xs text-teal-400 mt-2 font-bold uppercase tracking-wider">Chapter 1 • In Progress</p>
             </div>
           </button>
 
-          {/* Kahoot Card */}
+          {/* Battle Mode */}
           <button 
             onClick={() => { setMode('kahoot'); playClick(); }}
-            className="group relative bg-gradient-to-br from-indigo-600 to-purple-700 text-left p-10 rounded-[2.5rem] shadow-2xl hover:shadow-purple-500/50 transition-all hover:-translate-y-3 overflow-hidden"
+            className="group relative h-80 bg-indigo-900 rounded-[2.5rem] p-8 text-left border border-indigo-700 hover:border-purple-400 transition-all hover:-translate-y-2 overflow-hidden flex flex-col justify-end shadow-[0_0_30px_rgba(79,70,229,0.2)]"
           >
              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-             <div className="relative z-10">
-                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-8 group-hover:scale-110 transition-transform backdrop-blur-sm border border-white/30">
-                  <Gamepad2 size={32} />
-                </div>
-                <h3 className="text-2xl font-black text-white mb-3">{t('kahootMode')}</h3>
-                <p className="text-indigo-100 text-sm font-medium leading-relaxed">High-energy quiz battle. Test your reflexes and earn massive XP.</p>
+             <div className="absolute top-0 right-0 p-6">
+                <span className="bg-yellow-400 text-black text-xs font-black px-2 py-1 rounded uppercase">2x XP</span>
+             </div>
+             <div className="relative z-20">
+                <Gamepad2 className="text-white w-12 h-12 mb-4 group-hover:rotate-12 transition-transform" />
+                <h3 className="text-3xl font-black text-white italic leading-none mb-2">{t('kahootMode')}</h3>
+                <p className="text-indigo-200 text-sm font-medium">Ranked Match</p>
              </div>
           </button>
 
-          {/* Vocab Card */}
+          {/* Swipe Vocab */}
           <button 
             onClick={() => { setMode('vocab'); playClick(); }}
-            className="group relative bg-white dark:bg-slate-800 text-left p-10 rounded-[2.5rem] shadow-2xl hover:shadow-indigo-500/30 transition-all hover:-translate-y-3 overflow-hidden border border-gray-100 dark:border-slate-700"
+            className="group relative h-80 bg-slate-900 rounded-[2.5rem] p-8 text-left border border-slate-800 hover:border-pink-500 transition-all hover:-translate-y-2 overflow-hidden flex flex-col justify-between"
           >
-             <div className="absolute -right-4 -top-4 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/20 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-             <div className="relative z-10">
-                <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-8 group-hover:rotate-12 transition-transform shadow-sm">
-                  <BookA size={32} />
-                </div>
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{t('vocabMode')}</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Interactive 3D flashcards. Master the Unit 1 wordlist.</p>
+             <div className="absolute -right-12 -top-12 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl group-hover:bg-pink-500/40 transition-colors"></div>
+             
+             <BookA className="text-pink-500 w-10 h-10 relative z-10" />
+             
+             <div className="relative z-20">
+                <h3 className="text-3xl font-black text-white italic mb-2">{t('vocabMode')}</h3>
+                <p className="text-slate-400 text-sm">8 cards pending</p>
              </div>
           </button>
 
-          {/* Teacher Card */}
-          <button 
-            onClick={() => { setMode('teacher'); playClick(); }}
-            className="group relative bg-slate-100 dark:bg-slate-800/50 text-left p-10 rounded-[2.5rem] shadow-xl hover:shadow-slate-500/20 transition-all hover:-translate-y-3 overflow-hidden border border-slate-200 dark:border-slate-700"
-          >
-             <div className="relative z-10">
-                <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700 rounded-2xl flex items-center justify-center text-slate-600 dark:text-slate-300 mb-8 group-hover:scale-110 transition-transform">
-                  <GraduationCap size={32} />
-                </div>
-                <h3 className="text-2xl font-black text-slate-700 dark:text-white mb-3">{t('teacherMode')}</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Lesson aims, keys & CCQs. For instructor use only.</p>
-             </div>
-          </button>
+           {/* Mock Leaderboard */}
+           <div className="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 flex flex-col h-80 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-6 z-10">
+                 <Crown className="text-yellow-400 w-5 h-5" />
+                 <h3 className="font-black text-white uppercase tracking-wider text-sm">Top Players</h3>
+              </div>
+              
+              <div className="space-y-4 relative z-10">
+                 <div className="flex items-center gap-3 opacity-50">
+                    <div className="font-black text-slate-500">1</div>
+                    <div className="w-8 h-8 rounded-full bg-blue-500"></div>
+                    <div className="text-sm font-bold text-slate-300">Alex_99</div>
+                    <div className="ml-auto text-xs text-yellow-500 font-bold">5200 XP</div>
+                 </div>
+                 <div className="flex items-center gap-3 opacity-50">
+                    <div className="font-black text-slate-500">2</div>
+                    <div className="w-8 h-8 rounded-full bg-red-500"></div>
+                    <div className="text-sm font-bold text-slate-300">Sarah.B</div>
+                    <div className="ml-auto text-xs text-yellow-500 font-bold">4850 XP</div>
+                 </div>
+                 <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-xl border border-teal-500/30">
+                    <div className="font-black text-teal-500">3</div>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-purple-500 p-[1px]">
+                         <div className="w-full h-full bg-black rounded-full flex items-center justify-center text-[10px]">😎</div>
+                    </div>
+                    <div className="text-sm font-bold text-white">YOU</div>
+                    <div className="ml-auto text-xs text-yellow-400 font-bold">{userState.xp} XP</div>
+                 </div>
+              </div>
+              
+              <div className="mt-auto text-center z-10">
+                 <button onClick={() => setMode('teacher')} className="text-xs text-slate-600 hover:text-slate-400 uppercase font-bold tracking-widest">
+                     Teacher Admin
+                 </button>
+              </div>
+           </div>
 
         </div>
       </div>
